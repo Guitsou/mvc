@@ -64,18 +64,68 @@
 			if (ctype_digit($id_utilisateur)) {
 
 				// On transforme la chaine en entier
-				$id_utilisateur = (int) $id_utilisateur
+				$id_utilisateur = (int) $id_utilisateur;
 
 				// Préparation du mail
 				$message_mail = '<html><head></head><body>
 				<p>Merci de vous être inscrit sur "mon site" !</p>
-				<p>Veuillez cliquer sur <a href="' . $_SERVER['PHP_SELF'] . '?
-				module=membres&amp;action=valider_compte&amp;hash=' . $hash_validation . '">ce
+				<p>Veuillez cliquer sur <a href="'.$_SERVER['PHP_SELF'].'?
+				module=membres&amp;action=valider_compte&amp;hash='.$hash_validation.'">ce
 				lien</a> pour activer votre compte !</p>
 				</body></html>';
 
 				$headers_mail  = 'MIME-Version: 1.0'                              . "\r\n";
 				$headers_mail .= 'Content-type: text/html; charset=utf-8'         . "\r\n";
+				$headers_mail .= 'From: "Mon site" <contact@monsite.com>'		  . "\r\n";
+
+				// Envoi du mail
+				mail($form_inscription->get_cleaned_data('adresse_email'), 'inscription sur <monsite.com>', $message_mail, $headers_mail);
+
+				// Redimensionnement et sauvegarde de l'avatar (éventuel) dans le bon dossier
+				if (!empty($avatar)) {
+
+					// On souhaite utiliser la librairie Image
+					include CHEMIN_LIB . 'image.php';
+
+					// Redimensionnement et sauvegarde de l'avatar
+					$avatar = new Image($avatar);
+					$avatar->resize_to(AVATAR_LARGEUR_MAXI, AVATAR_HAUTEUR_MAXI);
+					$avatar_filename = DOSSIER_AVATAR . $id_utilisateur . '.' . strtolower(pathinfo($avatar->get_filename(), PATHINFO_EXTENSION));
+					$avatar->save_as($avatar_filename);
+
+					// On veut utiliser le modèle des membres (~/modeles/membres.php)
+					include CHEMIN_MODELE . 'membres.php';
+
+					// Mise à jour de l'avatar dans la table
+					// maj_avatar_membre() est défini dans ~/modeles/membres.php
+					maj_avatar_membre($id_utilisateur, $avatar_filename);
+				}
+
+				// Affichage de la confirmation de l'inscription
+				include CHEMIN_VUE . 'inscription_effectuee.php';
+
+			// Gestion des doublons
+			} else {
+				// Changement de nom de variable (plus lisible)
+				$erreur =& $id_utilisateur;
+
+				// On vérifie que l'erreur concerne bien un doublon
+				if (23000 == $erreur[0]) {	// Le code d'erreur 23000 signifie "doublon" dans le standard ANSI SQL
+					preg_match("`Duplicate entry '(.+)' for key \d+`is", $erreur[2], $valeur_probleme);
+					$valeur_probleme = $valeur_probleme[1];
+
+					if ($nom_utilisateur == $valeur_probleme) {
+						$erreurs_inscription[] = "Ce nom d'utilisateur est déjà utilisé.";
+					} else if ($adresse_email == $valeur_probleme) {
+						$erreurs_inscription[] = "Cette adresse e-mail est déjà utilisée.";
+					} else {
+						$erreurs_inscription[] = "Erreur ajout SQL : doublon non identifié présent dans la base de données.";
+					}
+				} else {
+					$erreurs_inscription[] = sprintf("Erreur ajout SQL : cas non traité (SQLSTATE = %d).", $erreur[0]);
+				}
+				// On réaffiche le formulaire d'inscription
+				include CHEMIN_VUE.'formulaire_inscription.php';
 			}
 
 		} else {
@@ -87,4 +137,3 @@
 		// On affiche à nouveau le formulaire d'inscription
 		include CHEMIN_VUE.'formulaire_inscription.php';
 	}
-

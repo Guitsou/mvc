@@ -2,9 +2,9 @@
 
 <?php
 
-if (!empty($erreurs_inscriptions)) {
+if (!empty($erreurs_inscription)) {
 	echo '<ul>' . "\n";
-	foreach ($erreurs_inscriptions as $e) {
+	foreach ($erreurs_inscription as $e) {
 		echo ' <li>' . $e . '</li>' . "\n";
 	}
 	echo '</ul>';
